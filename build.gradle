@@ -1,0 +1,69 @@
+apply plugin: 'idea'
+apply plugin: 'groovy'
+
+sourceCompatibility = 1.7
+version = '1.0'
+
+repositories {
+    mavenCentral()
+    maven {
+        url = 'http://oss.sonatype.org/content/repositories/snapshots/'
+    }
+}
+
+dependencies {
+    compile 'org.codehaus.groovy:groovy-all:2.3.6'
+
+    testCompile 'junit:junit:4.11'
+    testCompile 'org.spockframework:spock-core:1.0-groovy-2.0-SNAPSHOT'
+}
+
+buildscript {
+    repositories {
+        mavenCentral()
+        maven {
+            url = 'http://oss.sonatype.org/content/repositories/snapshots/'
+        }
+    }
+    dependencies {
+        classpath "org.spockframework:spock-report:1.0-groovy-2.0-SNAPSHOT"
+    }
+}
+
+task wrapper(type: Wrapper) {
+    gradleVersion = '2.0'
+}
+
+// Custom test report for the new style Spock reports
+ext.spockLogFileDir = file("$buildDir/spock/logFiles")
+ext.configFile = file("SpockReportConfig.groovy")
+
+test {
+    systemProperty "spock.configuration", configFile
+    systemProperty "spock.logFileDir", spockLogFileDir
+
+    ignoreFailures = true
+
+    doFirst {
+        delete spockLogFileDir
+    }
+}
+
+task testReport(dependsOn: test) {
+    doFirst {
+        Set files = spockLogFileDir.listFiles()
+        def reportDir = file("$buildDir/reports/spock")
+        new org.spockframework.report.HtmlReportGenerator().with {
+            reportName = 'Automated acceptance test results'
+            reportFileName = 'index.html'
+            logFiles = files
+            outputDirectory = reportDir
+            local = false
+            debug = false
+            generate()
+        }
+        println "See Spock report at ${org.spockframework.util.ConsoleUtil.asClickableFileUrl(new File(reportDir, 'index.html'))}"
+    }
+}
+
+
